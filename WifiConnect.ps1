@@ -53,7 +53,7 @@ Function Get-BestSignal {
     return $bestProfileName
 }
 
-Function Get-BestSignalWithBand($bandType) {
+Function Get-BestSignalWithBand([string]$bandType = "5 GHz") {
     $wifiProfiles = netsh wlan show profiles | Select-String "All User Profile"
     $bestProfileName = ""
     $bestSignalStrength
