@@ -1,4 +1,4 @@
-﻿# Function to disconnect from the current Wi-Fi connection
+# Function to disconnect from the current Wi-Fi connection
 Function Disconnect-WiFi {
     $currentConnection = Get-NetConnectionProfile
     if ($null -ne $currentConnection.InterfaceAlias ) {
@@ -11,7 +11,7 @@ Function Disconnect-WiFi {
 Function Connect-WiFi([string]$ssid) {
     $ssid = $ssid.Trim()
     Write-Host "Connecting to network: $ssid"
-    netsh wlan connect name=$ssid ssid=$ssid 
+    netsh wlan connect name=$ssid
 }
 
 # Function to get the signal strength of a specific SSID
@@ -41,7 +41,7 @@ Function Get-SignalBand([string]$ssid) {
 Function Get-BestSignal {
     $wifiProfiles = netsh wlan show profiles | Select-String "All User Profile"
     $bestProfileName = ""
-    $bestSignalStrength
+    $bestSignalStrength = 0
     for($i = 0; $i -lt $wifiProfiles.Count; $i++){
         $profileName = $wifiProfiles[$i] -replace '^\s+All User Profile\s+:\s+', ''
         $signal = Get-SignalStrength -ssid $profileName
@@ -53,10 +53,10 @@ Function Get-BestSignal {
     return $bestProfileName
 }
 
-Function Get-BestSignalWithBand([string]$bandType = "5 GHz") {
+Function Get-BestSignalWithBand($bandType) {
     $wifiProfiles = netsh wlan show profiles | Select-String "All User Profile"
     $bestProfileName = ""
-    $bestSignalStrength
+    $bestSignalStrength = 0
     for($i = 0; $i -lt $wifiProfiles.Count; $i++){
         $profileName = $wifiProfiles[$i] -replace '^\s+All User Profile\s+:\s+', ''
         $signal = Get-SignalStrength -ssid $profileName
@@ -74,8 +74,9 @@ Function Disconnect{
     if($null -eq $currentConnection){
         return
     }
+    $signalBand = Get-SignalBand -ssid $currentConnection.Name
     $signalStrength = Get-SignalStrength -ssid $currentConnection.Name
-    if ($signalStrength -gt 80 ){
+    if (  ($signalStrength -gt 80) -and ($signalBand -eq "5 Ghz")  ){
         Write-host "Good Connection. No need to change."
         Exit 0
     }else{
@@ -83,15 +84,23 @@ Function Disconnect{
     }
 }
 
+Function Is5GCapable{
+    return (netsh wlan show drivers | select-string "5 Ghz").Line.ToString().Contains("5")
+}
+
 
 Function Main{
     Disconnect
-    $network = Get-BestSignalWithBand "5 GHz"
-    if((Get-SignalStrength $network) -lt 66 ){
+    if (Is5GCapable){
+        $network = Get-BestSignalWithBand "5 GHz"
+        if((Get-SignalStrength $network) -lt 66 ){
+            $network = Get-BestSignalWithBand "2.4 GHz"
+        }
+    } else {
         $network = Get-BestSignalWithBand "2.4 GHz"
     }
     Connect-WiFi -ssid $network
+    Start-Sleep 10
 }
 
 Main
-
